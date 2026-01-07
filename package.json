@@ -1,0 +1,32 @@
+{
+  "name": "neousage",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "CLI tool to analyze Neovate Code usage statistics",
+  "main": "./dist/cli.mjs",
+  "bin": {
+    "neousage": "./dist/cli.mjs"
+  },
+  "scripts": {
+    "dev": "bun ./src/cli.ts",
+    "build": "bun build src/cli.ts --minify --outfile dist/cli.mjs --target=node",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "cli",
+    "neovate",
+    "usage",
+    "analytics"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.5.0",
+    "cli-table3": "^0.6.4",
+    "pathe": "^2.0.3",
+    "yargs-parser": "^22.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.2",
+    "typescript": "^5.9.3"
+  }
+}
