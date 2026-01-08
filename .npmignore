@@ -1,0 +1,9 @@
+src
+.git
+.gitignore
+.claude
+node_modules
+bun.lock
+tsconfig.json
+*.log
+.DS_Store

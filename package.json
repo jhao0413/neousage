@@ -7,6 +7,11 @@
   "bin": {
     "neousage": "./dist/cli.mjs"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "bun ./src/cli.ts",
     "build": "bun build src/cli.ts --minify --outfile dist/cli.mjs --target=node",
@@ -19,6 +24,15 @@
     "analytics"
   ],
   "license": "MIT",
+  "author": "Your Name <your.email@example.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/neousage.git"
+  },
+  "homepage": "https://github.com/yourusername/neousage#readme",
+  "bugs": {
+    "url": "https://github.com/yourusername/neousage/issues"
+  },
   "dependencies": {
     "chalk": "^5.5.0",
     "cli-table3": "^0.6.4",

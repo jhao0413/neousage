@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import chalk from 'chalk';
+import { brandColor } from './theme';
 import { getAllSessions, analyzeDailyStats, analyzeMonthlyStats, analyzeSessionStats } from './parser';
 import { formatDailyStats, formatMonthlyStats, formatSessionStats } from './formatter';
 
 function showHelp() {
-  console.log(chalk.bold.cyan('\nneousage - Analyze Neovate Code usage statistics\n'));
+  console.log(brandColor.bold('\nneousage - Analyze Neovate Code usage statistics\n'));
   console.log('Usage: neousage [command]\n');
   console.log('Commands:');
   console.log('  daily      Show daily token usage (default)');
@@ -33,7 +34,7 @@ function main() {
     process.exit(1);
   }
 
-  console.log(chalk.bold.blue('Loading Neovate usage data...'));
+  console.log(brandColor.bold('Loading Neovate usage data...'));
 
   const sessions = getAllSessions();
 
@@ -54,13 +55,13 @@ function main() {
     }
     formatDailyStats(dailyStats);
   } else if (command === 'monthly') {
-    const monthlyStats = analyzeMonthlyStats(sessions);
+    const { stats: monthlyStats, monthTotalDays } = analyzeMonthlyStats(sessions);
     if (monthlyStats.length === 0) {
       console.log(chalk.yellow('\nNo usage data found in sessions.'));
       console.log(chalk.gray('Sessions may not contain any assistant messages with usage data.\n'));
       process.exit(0);
     }
-    formatMonthlyStats(monthlyStats);
+    formatMonthlyStats(monthlyStats, monthTotalDays);
   } else if (command === 'session') {
     const sessionStats = analyzeSessionStats(sessions);
     if (sessionStats.length === 0) {

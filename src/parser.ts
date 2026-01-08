@@ -103,9 +103,53 @@ export function parseSession(filePath: string): NormalizedMessage[] {
   return messages;
 }
 
-export function analyzeDailyStats(sessions: SessionInfo[]): DailyStats[] {
+// Cache for session paths to avoid repeated directory traversals
+let sessionPathCache: Map<string, string> | null = null;
+
+function buildSessionPathCache(): Map<string, string> {
+  if (sessionPathCache !== null) {
+    return sessionPathCache;
+  }
+
+  sessionPathCache = new Map<string, string>();
   const projectsPath = getNeovateProjectsPath();
-  const statsMap = new Map<string, DailyStats>();
+
+  const findInDir = (dir: string, relativePath: string = ''): void => {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        findInDir(fullPath, path.join(relativePath, entry.name));
+      } else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+        const sessionId = path.basename(entry.name, '.jsonl');
+        const sessionRelativePath = path.join(relativePath, entry.name);
+        sessionPathCache!.set(sessionId, sessionRelativePath);
+      }
+    }
+  };
+
+  if (fs.existsSync(projectsPath)) {
+    findInDir(projectsPath);
+  }
+
+  return sessionPathCache;
+}
+
+function findSessionPath(sessionId: string): string {
+  const cache = buildSessionPathCache();
+  return cache.get(sessionId) || `${sessionId}.jsonl`;
+}
+
+// Helper to process all messages from all sessions
+function processAllMessages(
+  sessions: SessionInfo[],
+  messageHandler: (message: NormalizedMessage) => void
+): void {
+  const projectsPath = getNeovateProjectsPath();
+  // Build cache once for all sessions
+  buildSessionPathCache();
 
   for (const session of sessions) {
     const sessionPath = path.join(projectsPath, findSessionPath(session.sessionId));
@@ -113,59 +157,58 @@ export function analyzeDailyStats(sessions: SessionInfo[]): DailyStats[] {
 
     for (const message of messages) {
       if (message.role === 'assistant' && message.model && message.usage) {
-        const date = message.timestamp.split('T')[0];
-        const model = message.model;
-        const key = `${date}|${model}`;
-
-        const existing = statsMap.get(key) || {
-          date,
-          model,
-          inputTokens: 0,
-          outputTokens: 0,
-          cacheReadTokens: 0,
-          cacheCreationTokens: 0,
-          totalTokens: 0,
-          messages: 0,
-        };
-
-        existing.inputTokens += message.usage.input_tokens || 0;
-        existing.outputTokens += message.usage.output_tokens || 0;
-        existing.cacheReadTokens += message.usage.cache_read_input_tokens || 0;
-        existing.cacheCreationTokens += message.usage.cache_creation_input_tokens || 0;
-        existing.totalTokens += (message.usage.input_tokens || 0) + (message.usage.output_tokens || 0);
-        existing.messages += 1;
-
-        statsMap.set(key, existing);
+        messageHandler(message);
       }
     }
   }
-
-  return Array.from(statsMap.values()).sort((a, b) => b.date.localeCompare(a.date));
 }
 
-function findSessionPath(sessionId: string): string {
-  const projectsPath = getNeovateProjectsPath();
+// Helper to accumulate usage data
+function accumulateUsage(
+  existing: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheCreationTokens: number;
+    totalTokens: number;
+    messages: number;
+  },
+  usage: NormalizedMessage['usage']
+): void {
+  if (!usage) return;
 
-  const findInDir = (dir: string): string | null => {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
+  existing.inputTokens += usage.input_tokens || 0;
+  existing.outputTokens += usage.output_tokens || 0;
+  existing.cacheReadTokens += usage.cache_read_input_tokens || 0;
+  existing.cacheCreationTokens += usage.cache_creation_input_tokens || 0;
+  existing.totalTokens += (usage.input_tokens || 0) + (usage.output_tokens || 0);
+  existing.messages += 1;
+}
 
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
+export function analyzeDailyStats(sessions: SessionInfo[]): DailyStats[] {
+  const statsMap = new Map<string, DailyStats>();
 
-      if (entry.isDirectory()) {
-        const result = findInDir(fullPath);
-        if (result) {
-          return path.join(entry.name, result);
-        }
-      } else if (entry.isFile() && entry.name === `${sessionId}.jsonl`) {
-        return entry.name;
-      }
-    }
+  processAllMessages(sessions, (message) => {
+    const date = message.timestamp.split('T')[0];
+    const model = message.model!;
+    const key = `${date}|${model}`;
 
-    return null;
-  };
+    const existing = statsMap.get(key) || {
+      date,
+      model,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+      totalTokens: 0,
+      messages: 0,
+    };
 
-  return findInDir(projectsPath) || `${sessionId}.jsonl`;
+    accumulateUsage(existing, message.usage);
+    statsMap.set(key, existing);
+  });
+
+  return Array.from(statsMap.values()).sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export function calculateSummary(stats: DailyStats[]): SummaryStats {
@@ -208,49 +251,42 @@ export function calculateSummary(stats: DailyStats[]): SummaryStats {
   };
 }
 
-export function analyzeMonthlyStats(sessions: SessionInfo[]): MonthlyStats[] {
-  const projectsPath = getNeovateProjectsPath();
+export function analyzeMonthlyStats(sessions: SessionInfo[]): { stats: MonthlyStats[]; monthTotalDays: Map<string, number> } {
   const statsMap = new Map<string, MonthlyStats & { daysSet: Set<string> }>();
+  const monthDaysMap = new Map<string, Set<string>>(); // Track all unique days per month
 
-  for (const session of sessions) {
-    const sessionPath = path.join(projectsPath, findSessionPath(session.sessionId));
-    const messages = parseSession(sessionPath);
+  processAllMessages(sessions, (message) => {
+    const date = message.timestamp.split('T')[0];
+    const month = date.slice(0, 7); // YYYY-MM
+    const model = message.model!;
+    const key = `${month}|${model}`;
 
-    for (const message of messages) {
-      if (message.role === 'assistant' && message.model && message.usage) {
-        const date = message.timestamp.split('T')[0];
-        const month = date.slice(0, 7); // YYYY-MM
-        const model = message.model;
-        const key = `${month}|${model}`;
+    const existing = statsMap.get(key) || {
+      month,
+      model,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+      totalTokens: 0,
+      messages: 0,
+      days: 0,
+      daysSet: new Set<string>(),
+    };
 
-        const existing = statsMap.get(key) || {
-          month,
-          model,
-          inputTokens: 0,
-          outputTokens: 0,
-          cacheReadTokens: 0,
-          cacheCreationTokens: 0,
-          totalTokens: 0,
-          messages: 0,
-          days: 0,
-          daysSet: new Set<string>(),
-        };
+    accumulateUsage(existing, message.usage);
+    existing.daysSet.add(date);
+    statsMap.set(key, existing);
 
-        existing.inputTokens += message.usage.input_tokens || 0;
-        existing.outputTokens += message.usage.output_tokens || 0;
-        existing.cacheReadTokens += message.usage.cache_read_input_tokens || 0;
-        existing.cacheCreationTokens += message.usage.cache_creation_input_tokens || 0;
-        existing.totalTokens += (message.usage.input_tokens || 0) + (message.usage.output_tokens || 0);
-        existing.messages += 1;
-        existing.daysSet.add(date);
-
-        statsMap.set(key, existing);
-      }
+    // Track all unique days for this month across all models
+    if (!monthDaysMap.has(month)) {
+      monthDaysMap.set(month, new Set<string>());
     }
-  }
+    monthDaysMap.get(month)!.add(date);
+  });
 
   // Convert daysSet to days count and remove daysSet
-  const result: MonthlyStats[] = Array.from(statsMap.values()).map((stat) => ({
+  const stats: MonthlyStats[] = Array.from(statsMap.values()).map((stat) => ({
     month: stat.month,
     model: stat.model,
     inputTokens: stat.inputTokens,
@@ -262,12 +298,24 @@ export function analyzeMonthlyStats(sessions: SessionInfo[]): MonthlyStats[] {
     days: stat.daysSet.size,
   }));
 
-  return result.sort((a, b) => b.month.localeCompare(a.month));
+  // Convert monthDaysMap to monthTotalDays
+  const monthTotalDays = new Map<string, number>();
+  for (const [month, daysSet] of monthDaysMap.entries()) {
+    monthTotalDays.set(month, daysSet.size);
+  }
+
+  return {
+    stats: stats.sort((a, b) => b.month.localeCompare(a.month)),
+    monthTotalDays,
+  };
 }
 
 export function analyzeSessionStats(sessions: SessionInfo[]): SessionStats[] {
   const projectsPath = getNeovateProjectsPath();
   const result: SessionStats[] = [];
+
+  // Build cache once for all sessions
+  buildSessionPathCache();
 
   for (const session of sessions) {
     const sessionPath = path.join(projectsPath, findSessionPath(session.sessionId));
@@ -300,12 +348,7 @@ export function analyzeSessionStats(sessions: SessionInfo[]): SessionStats[] {
           lastTimestamp: message.timestamp,
         };
 
-        existing.inputTokens += message.usage.input_tokens || 0;
-        existing.outputTokens += message.usage.output_tokens || 0;
-        existing.cacheReadTokens += message.usage.cache_read_input_tokens || 0;
-        existing.cacheCreationTokens += message.usage.cache_creation_input_tokens || 0;
-        existing.totalTokens += (message.usage.input_tokens || 0) + (message.usage.output_tokens || 0);
-        existing.messages += 1;
+        accumulateUsage(existing, message.usage);
 
         // Keep the latest timestamp
         if (message.timestamp > existing.lastTimestamp) {

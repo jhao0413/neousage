@@ -37,6 +37,12 @@ export interface MonthlyStats {
   days: number;
 }
 
+export interface MonthlyStatsGroup {
+  month: string;
+  stats: MonthlyStats[];
+  totalDays: number; // Total unique days used in this month across all models
+}
+
 export interface SessionStats {
   sessionId: string;
   summary: string;

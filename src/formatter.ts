@@ -1,9 +1,10 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import { brandColor } from './theme';
 import type { DailyStats, MonthlyStats, SessionStats } from './types';
 
 export function formatDailyStats(stats: DailyStats[]): void {
-  console.log(chalk.bold.cyan('\n📅 Daily Usage Statistics\n'));
+  console.log(brandColor.bold('\n📅 Daily Usage Statistics\n'));
 
   if (stats.length === 0) {
     console.log(chalk.yellow('No usage data found.'));
@@ -43,11 +44,11 @@ export function formatDailyStats(stats: DailyStats[]): void {
 
     const table = new Table({
       head: [
-        chalk.cyan('Model'),
-        chalk.cyan('Input'),
-        chalk.cyan('Output'),
-        chalk.cyan('Total'),
-        chalk.cyan('Messages'),
+        brandColor('Model'),
+        brandColor('Input'),
+        brandColor('Output'),
+        brandColor('Total'),
+        brandColor('Messages'),
       ],
       colWidths: [45, 12, 12, 12, 10],
     });
@@ -85,8 +86,8 @@ function formatNumber(num: number): string {
   return num.toString();
 }
 
-export function formatMonthlyStats(stats: MonthlyStats[]): void {
-  console.log(chalk.bold.cyan('\n📆 Monthly Usage Statistics\n'));
+export function formatMonthlyStats(stats: MonthlyStats[], monthTotalDays: Map<string, number>): void {
+  console.log(brandColor.bold('\n📆 Monthly Usage Statistics\n'));
 
   if (stats.length === 0) {
     console.log(chalk.yellow('No usage data found.'));
@@ -122,19 +123,19 @@ export function formatMonthlyStats(stats: MonthlyStats[]): void {
       monthTotal.messages += stat.messages;
     }
 
-    // Calculate total days used in this month
-    const totalDays = monthStats.reduce((sum, stat) => Math.max(sum, stat.days), 0);
+    // Get total unique days for this month across all models
+    const totalDays = monthTotalDays.get(month) || 0;
 
     console.log(chalk.bold.yellow(`\n${month} (${totalDays} days)`));
 
     const table = new Table({
       head: [
-        chalk.cyan('Model'),
-        chalk.cyan('Input'),
-        chalk.cyan('Output'),
-        chalk.cyan('Total'),
-        chalk.cyan('Messages'),
-        chalk.cyan('Days'),
+        brandColor('Model'),
+        brandColor('Input'),
+        brandColor('Output'),
+        brandColor('Total'),
+        brandColor('Messages'),
+        brandColor('Days'),
       ],
       colWidths: [40, 12, 12, 12, 10, 8],
     });
@@ -168,7 +169,7 @@ export function formatMonthlyStats(stats: MonthlyStats[]): void {
 }
 
 export function formatSessionStats(stats: SessionStats[]): void {
-  console.log(chalk.bold.cyan('\n💬 Session-based Usage Statistics\n'));
+  console.log(brandColor.bold('\n💬 Session-based Usage Statistics\n'));
 
   if (stats.length === 0) {
     console.log(chalk.yellow('No usage data found.'));
@@ -177,13 +178,13 @@ export function formatSessionStats(stats: SessionStats[]): void {
 
   const table = new Table({
     head: [
-      chalk.cyan('Last Used'),
-      chalk.cyan('Session'),
-      chalk.cyan('Model'),
-      chalk.cyan('Input'),
-      chalk.cyan('Output'),
-      chalk.cyan('Total'),
-      chalk.cyan('Messages'),
+      brandColor('Last Used'),
+      brandColor('Session'),
+      brandColor('Model'),
+      brandColor('Input'),
+      brandColor('Output'),
+      brandColor('Total'),
+      brandColor('Messages'),
     ],
     colWidths: [12, 35, 30, 12, 12, 12, 10],
   });
