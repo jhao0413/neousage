@@ -5,7 +5,7 @@
   "description": "CLI tool to analyze Neovate Code usage statistics",
   "main": "./dist/cli.mjs",
   "bin": {
-    "neousage": "./dist/cli.mjs"
+    "neousage": "dist/cli.mjs"
   },
   "files": [
     "dist",
@@ -27,7 +27,7 @@
   "author": "jhao0413",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jhao0413/neousage"
+    "url": "git+https://github.com/jhao0413/neousage.git"
   },
   "homepage": "https://github.com/jhao0413/neousage",
   "bugs": {

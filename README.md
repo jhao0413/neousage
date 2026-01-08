@@ -2,42 +2,41 @@
 
 CLI tool to analyze Neovate Code usage statistics.
 
+![neousage](https://jhao413.oss-cn-beijing.aliyuncs.com/2025-11-14_22-1711.png)
+
 ## Installation
 
+### Quick Start (Recommended)
+
+You can run `neousage` directly without installation:
+
 ```bash
-cd neousage
-npm install
+npx neousage
+
+# Using bunx
+bunx neousage
 ```
 
-## Usage
+### Global Installation (Optional)
 
-### Development
+If you prefer to install globally:
+
 ```bash
-npm run dev             # Show daily report (default)
-npm run dev daily       # Daily token usage
-npm run dev monthly     # Monthly aggregated report
-npm run dev session     # Usage by conversation session
+npm install -g neousage
+# or
+bun install -g neousage
+# or
+pnpm install -g neousage
 ```
 
-### Build
+Then run directly:
+
 ```bash
-npm run build
+neousage            # Show daily report (default)
+neousage daily      # Daily token usage
+neousage monthly    # Monthly aggregated report
+neousage session    # Usage by conversation session
 ```
-
-### Run (after build)
-```bash
-npx neousage            # Show daily report (default)
-npx neousage daily      # Daily token usage
-npx neousage monthly    # Monthly aggregated report
-npx neousage session    # Usage by conversation session
-```
-
-## Features
-
-- **Daily Statistics**: View token usage broken down by date, showing models used each day
-- **Monthly Statistics**: See monthly aggregated usage with total days active per model
-- **Session Statistics**: Analyze usage by individual conversation sessions
-- **Token Metrics**: Track input tokens, output tokens, total tokens, and messages
 
 ## Commands
 
@@ -49,22 +48,6 @@ Commands:
   monthly    Show monthly aggregated report
   session    Show usage by conversation session
   help       Show help message
-```
-
-## Examples
-
-```bash
-# Show daily report (default)
-npx neousage
-
-# Show daily stats
-npx neousage daily
-
-# Show monthly stats
-npx neousage monthly
-
-# Show session-based stats
-npx neousage session
 ```
 
 ## Output Columns
