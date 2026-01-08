@@ -24,14 +24,14 @@
     "analytics"
   ],
   "license": "MIT",
-  "author": "Your Name <your.email@example.com>",
+  "author": "jhao0413",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/neousage.git"
+    "url": "https://github.com/jhao0413/neousage"
   },
-  "homepage": "https://github.com/yourusername/neousage#readme",
+  "homepage": "https://github.com/jhao0413/neousage",
   "bugs": {
-    "url": "https://github.com/yourusername/neousage/issues"
+    "url": "https://github.com/jhao0413/neousage/issues"
   },
   "dependencies": {
     "chalk": "^5.5.0",
