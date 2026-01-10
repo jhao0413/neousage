@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import chalk from 'chalk';
-import { brandColor } from './theme';
-import { getAllSessions, analyzeDailyStats, analyzeMonthlyStats, analyzeSessionStats } from './parser';
-import { formatDailyStats, formatMonthlyStats, formatSessionStats } from './formatter';
+import { brandColor } from './theme.js';
+import { getAllSessions, analyzeDailyStats, analyzeMonthlyStats, analyzeSessionStats } from './parser.js';
+import { formatDailyStats, formatMonthlyStats, formatSessionStats } from './formatter.js';
 
-function showHelp() {
+function showHelp(): void {
   console.log(brandColor.bold('\nneousage - Analyze Neovate Code usage statistics\n'));
   console.log('Usage: neousage [command]\n');
   console.log('Commands:');
@@ -19,16 +19,23 @@ function showHelp() {
   console.log('  neousage session     # Show session-based report\n');
 }
 
-function main() {
-  const args = process.argv.slice(2);
-  const command = args[0] || 'daily';
+const VALID_COMMANDS = ['daily', 'monthly', 'session'] as const;
+const HELP_FLAGS = ['help', '--help', '-h'];
 
-  if (command === 'help' || command === '--help' || command === '-h') {
+function showNoUsageDataMessage(): void {
+  console.log(chalk.yellow('\nNo usage data found in sessions.'));
+  console.log(chalk.gray('Sessions may not contain any assistant messages with usage data.\n'));
+}
+
+function main(): void {
+  const command = process.argv[2] || 'daily';
+
+  if (HELP_FLAGS.includes(command)) {
     showHelp();
     process.exit(0);
   }
 
-  if (!['daily', 'monthly', 'session'].includes(command)) {
+  if (!VALID_COMMANDS.includes(command as typeof VALID_COMMANDS[number])) {
     console.log(chalk.red(`\nUnknown command: ${command}`));
     showHelp();
     process.exit(1);
@@ -46,30 +53,34 @@ function main() {
 
   console.log(chalk.gray(`Found ${sessions.length} session(s)\n`));
 
-  if (command === 'daily') {
-    const dailyStats = analyzeDailyStats(sessions);
-    if (dailyStats.length === 0) {
-      console.log(chalk.yellow('\nNo usage data found in sessions.'));
-      console.log(chalk.gray('Sessions may not contain any assistant messages with usage data.\n'));
-      process.exit(0);
+  switch (command) {
+    case 'daily': {
+      const dailyStats = analyzeDailyStats(sessions);
+      if (dailyStats.length === 0) {
+        showNoUsageDataMessage();
+        process.exit(0);
+      }
+      formatDailyStats(dailyStats);
+      break;
     }
-    formatDailyStats(dailyStats);
-  } else if (command === 'monthly') {
-    const { stats: monthlyStats, monthTotalDays } = analyzeMonthlyStats(sessions);
-    if (monthlyStats.length === 0) {
-      console.log(chalk.yellow('\nNo usage data found in sessions.'));
-      console.log(chalk.gray('Sessions may not contain any assistant messages with usage data.\n'));
-      process.exit(0);
+    case 'monthly': {
+      const { stats: monthlyStats, monthTotalDays } = analyzeMonthlyStats(sessions);
+      if (monthlyStats.length === 0) {
+        showNoUsageDataMessage();
+        process.exit(0);
+      }
+      formatMonthlyStats(monthlyStats, monthTotalDays);
+      break;
     }
-    formatMonthlyStats(monthlyStats, monthTotalDays);
-  } else if (command === 'session') {
-    const sessionStats = analyzeSessionStats(sessions);
-    if (sessionStats.length === 0) {
-      console.log(chalk.yellow('\nNo usage data found in sessions.'));
-      console.log(chalk.gray('Sessions may not contain any assistant messages with usage data.\n'));
-      process.exit(0);
+    case 'session': {
+      const sessionStats = analyzeSessionStats(sessions);
+      if (sessionStats.length === 0) {
+        showNoUsageDataMessage();
+        process.exit(0);
+      }
+      formatSessionStats(sessionStats);
+      break;
     }
-    formatSessionStats(sessionStats);
   }
 
   console.log();

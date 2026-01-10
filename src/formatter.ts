@@ -1,7 +1,37 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import { brandColor } from './theme';
-import type { DailyStats, MonthlyStats, SessionStats } from './types';
+import { brandColor } from './theme.js';
+import type { DailyStats, MonthlyStats, SessionStats } from './types.js';
+
+function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + '..';
+}
+
+function formatNumber(num: number): string {
+  if (num === 0) return '-';
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M';
+  if (num >= 1_000) return (num / 1_000).toFixed(2) + 'K';
+  return num.toString();
+}
+
+function sumStats<T extends { inputTokens: number; outputTokens: number; totalTokens: number; messages: number }>(
+  items: T[]
+): { inputTokens: number; outputTokens: number; totalTokens: number; messages: number } {
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let totalTokens = 0;
+  let messages = 0;
+
+  for (const item of items) {
+    inputTokens += item.inputTokens;
+    outputTokens += item.outputTokens;
+    totalTokens += item.totalTokens;
+    messages += item.messages;
+  }
+
+  return { inputTokens, outputTokens, totalTokens, messages };
+}
 
 export function formatDailyStats(stats: DailyStats[]): void {
   console.log(brandColor.bold('\n📅 Daily Usage Statistics\n'));
@@ -24,21 +54,7 @@ export function formatDailyStats(stats: DailyStats[]): void {
 
   for (const date of sortedDates) {
     const dayStats = dateMap.get(date)!;
-
-    // Calculate daily totals
-    const dayTotal = {
-      inputTokens: 0,
-      outputTokens: 0,
-      totalTokens: 0,
-      messages: 0,
-    };
-
-    for (const stat of dayStats) {
-      dayTotal.inputTokens += stat.inputTokens;
-      dayTotal.outputTokens += stat.outputTokens;
-      dayTotal.totalTokens += stat.totalTokens;
-      dayTotal.messages += stat.messages;
-    }
+    const dayTotal = sumStats(dayStats);
 
     console.log(chalk.bold.yellow(`\n${date}`));
 
@@ -53,10 +69,9 @@ export function formatDailyStats(stats: DailyStats[]): void {
       colWidths: [45, 12, 12, 12, 10],
     });
 
-    // Add each model's stats
     for (const stat of dayStats) {
       table.push([
-        stat.model.length > 43 ? stat.model.slice(0, 43) + '..' : stat.model,
+        truncate(stat.model, 43),
         formatNumber(stat.inputTokens),
         formatNumber(stat.outputTokens),
         formatNumber(stat.totalTokens),
@@ -77,13 +92,6 @@ export function formatDailyStats(stats: DailyStats[]): void {
 
     console.log(table.toString());
   }
-}
-
-function formatNumber(num: number): string {
-  if (num === 0) return '-';
-  if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
-  return num.toString();
 }
 
 export function formatMonthlyStats(stats: MonthlyStats[], monthTotalDays: Map<string, number>): void {
@@ -107,23 +115,7 @@ export function formatMonthlyStats(stats: MonthlyStats[], monthTotalDays: Map<st
 
   for (const month of sortedMonths) {
     const monthStats = monthMap.get(month)!;
-
-    // Calculate monthly totals
-    const monthTotal = {
-      inputTokens: 0,
-      outputTokens: 0,
-      totalTokens: 0,
-      messages: 0,
-    };
-
-    for (const stat of monthStats) {
-      monthTotal.inputTokens += stat.inputTokens;
-      monthTotal.outputTokens += stat.outputTokens;
-      monthTotal.totalTokens += stat.totalTokens;
-      monthTotal.messages += stat.messages;
-    }
-
-    // Get total unique days for this month across all models
+    const monthTotal = sumStats(monthStats);
     const totalDays = monthTotalDays.get(month) || 0;
 
     console.log(chalk.bold.yellow(`\n${month} (${totalDays} days)`));
@@ -140,10 +132,9 @@ export function formatMonthlyStats(stats: MonthlyStats[], monthTotalDays: Map<st
       colWidths: [40, 12, 12, 12, 10, 8],
     });
 
-    // Add each model's stats
     for (const stat of monthStats) {
       table.push([
-        stat.model.length > 38 ? stat.model.slice(0, 38) + '..' : stat.model,
+        truncate(stat.model, 38),
         formatNumber(stat.inputTokens),
         formatNumber(stat.outputTokens),
         formatNumber(stat.totalTokens),
@@ -190,13 +181,10 @@ export function formatSessionStats(stats: SessionStats[]): void {
   });
 
   for (const stat of stats) {
-    const shortSummary = stat.summary.length > 33 ? stat.summary.slice(0, 33) + '..' : stat.summary;
-    const shortModel = stat.model.length > 28 ? stat.model.slice(0, 28) + '..' : stat.model;
-
     table.push([
       stat.lastUsed,
-      shortSummary,
-      shortModel,
+      truncate(stat.summary, 33),
+      truncate(stat.model, 28),
       formatNumber(stat.inputTokens),
       formatNumber(stat.outputTokens),
       formatNumber(stat.totalTokens),
@@ -206,10 +194,8 @@ export function formatSessionStats(stats: SessionStats[]): void {
 
   console.log(table.toString());
 
-  // Show summary
-  const totalTokens = stats.reduce((sum, stat) => sum + stat.totalTokens, 0);
-  const totalMessages = stats.reduce((sum, stat) => sum + stat.messages, 0);
+  const totals = sumStats(stats);
   const uniqueSessions = new Set(stats.map((s) => s.sessionId)).size;
 
-  console.log(chalk.gray(`\nTotal: ${uniqueSessions} sessions, ${totalMessages} messages, ${formatNumber(totalTokens)} tokens`));
+  console.log(chalk.gray(`\nTotal: ${uniqueSessions} sessions, ${totals.messages} messages, ${formatNumber(totals.totalTokens)} tokens`));
 }

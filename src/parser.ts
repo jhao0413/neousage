@@ -1,9 +1,9 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'pathe';
-import type { DailyStats, MonthlyStats, SessionStats, NormalizedMessage, SessionInfo, SummaryStats } from './types';
+import type { DailyStats, MonthlyStats, SessionStats, NormalizedMessage, SessionInfo, SummaryStats } from './types.js';
 
-export function getNeovateProjectsPath(): string {
+function getNeovateProjectsPath(): string {
   return path.join(os.homedir(), '.neovate', 'projects');
 }
 
@@ -54,7 +54,7 @@ export function getAllSessions(): SessionInfo[] {
           sessionId,
           modified: stats.mtime,
           messageCount,
-          summary: summary ? summary.slice(0, 50) + '...' : '',
+          summary: summary.slice(0, 50),
         });
       }
     }
@@ -70,7 +70,7 @@ function extractFirstUserMessageSummary(lines: string[]): string {
     try {
       const entry = JSON.parse(line);
       if (entry.type === 'message' && entry.role === 'user' && typeof entry.content === 'string') {
-        return entry.content.length > 50 ? entry.content.slice(0, 50) + '...' : entry.content;
+        return entry.content;
       }
     } catch {
       continue;
@@ -103,7 +103,6 @@ export function parseSession(filePath: string): NormalizedMessage[] {
   return messages;
 }
 
-// Cache for session paths to avoid repeated directory traversals
 let sessionPathCache: Map<string, string> | null = null;
 
 function buildSessionPathCache(): Map<string, string> {
@@ -142,13 +141,11 @@ function findSessionPath(sessionId: string): string {
   return cache.get(sessionId) || `${sessionId}.jsonl`;
 }
 
-// Helper to process all messages from all sessions
 function processAllMessages(
   sessions: SessionInfo[],
   messageHandler: (message: NormalizedMessage) => void
 ): void {
   const projectsPath = getNeovateProjectsPath();
-  // Build cache once for all sessions
   buildSessionPathCache();
 
   for (const session of sessions) {
@@ -163,7 +160,6 @@ function processAllMessages(
   }
 }
 
-// Helper to accumulate usage data
 function accumulateUsage(
   existing: {
     inputTokens: number;
