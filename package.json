@@ -1,6 +1,6 @@
 {
   "name": "neousage",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "CLI tool to analyze Neovate Code usage statistics",
   "main": "./dist/cli.mjs",
